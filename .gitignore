@@ -1,0 +1,5 @@
+.DS_Store
+*.log
+*.crash
+build/
+dist/

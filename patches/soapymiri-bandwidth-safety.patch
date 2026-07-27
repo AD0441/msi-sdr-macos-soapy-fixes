@@ -1,0 +1,41 @@
+diff --git a/Settings.cpp b/Settings.cpp
+index 0000000..0000001 100644
+--- a/Settings.cpp
++++ b/Settings.cpp
+@@ -1,5 +1,27 @@
+ #include "SoapyMiri.hpp"
++#include <algorithm>
++#include <cmath>
++#include <stdexcept>
++
++static double nearestSupportedBandwidth(double requested)
++{
++    static const double supported[] = {
++        200000.0,
++        300000.0,
++        600000.0,
++        1536000.0,
++        5000000.0,
++        6000000.0,
++        7000000.0,
++        8000000.0
++    };
++
++    return *std::min_element(std::begin(supported), std::end(supported),
++        [requested](double a, double b) {
++            return std::abs(a - requested) < std::abs(b - requested);
++        });
++}
+ 
+ void SoapyMiri::setBandwidth(const int direction, const size_t channel, const double bw) {
+     if (!dev)
+         return;
+ 
+-    if (mirisdr_set_bandwidth(dev, (uint32_t) bw) != 0) {
+-        throw std::runtime_error("mirisdr_set_bandwidth failed");
++    double safeBw = nearestSupportedBandwidth(bw);
++    if (mirisdr_set_bandwidth(dev, (uint32_t) safeBw) != 0) {
++        throw std::runtime_error("mirisdr_set_bandwidth failed");
+     }
+ }
+
