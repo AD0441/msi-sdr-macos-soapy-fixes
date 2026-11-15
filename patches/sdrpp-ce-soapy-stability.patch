@@ -1,0 +1,263 @@
+--- a/source_modules/soapy_source/src/main.cpp
++++ b/source_modules/soapy_source/src/main.cpp
+@@ -1,3 +1,7 @@
++#include "rx_lifecycle.h"
++#include <algorithm>
++#include <mutex>
++#include <stdexcept>
+ #include <SoapySDR/Constants.h>
+ #include <imgui.h>
+ #include <utils/flog.h>
+@@ -55,6 +59,7 @@
+     ~SoapyModule() {
+         stop(this);
+         sigpath::sourceManager.unregisterSource("SoapySDR");
++        delete[] uiGains;
+     }
+ 
+     void postInit() {}
+@@ -245,7 +250,8 @@
+                 i++;
+             }
+             if (config.conf["devices"][name].contains("bandwidth")) {
+-                uiBandwidthId = config.conf["devices"][name]["bandwidth"];
++                const auto& savedBandwidth = config.conf["devices"][name]["bandwidth"];
++                uiBandwidthId = msi::validatedIndex(savedBandwidth.is_number_integer() ? savedBandwidth.get<double>() : -1.0, bandwidthList.size());
+             }
+             else if (bandwidthList.size() > 2) {
+                 uiBandwidthId = 0;
+@@ -278,6 +284,7 @@
+             selectSampleRate(sampleRates[0]); // Select default
+         }
+         config.release();
++        uiBandwidthId = msi::validatedIndex(uiBandwidthId, bandwidthList.size());
+     }
+ 
+     void saveCurrent() {
+@@ -313,70 +320,76 @@
+         flog::info("SoapyModule '{0}': Menu Deselect!", _this->name);
+     }
+ 
++    void cleanupDevice() {
++        msi::closeSession(running, workerThread, dev, devStream,
++            [&] { stream.stopWriter(); }, [&] { stream.clearWriteStop(); },
++            [&](const char* message) { flog::error("Soapy cleanup: {0}", message); });
++    }
++
+     static void start(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+-        if (_this->running) { return; }
+-        if (_this->devId < 0) {
+-            flog::error("No device available");
+-            return;
+-        }
+-
++        std::lock_guard<std::mutex> lock(_this->lifecycleMutex);
++        if (_this->running.load(std::memory_order_acquire)) return;
++        _this->cleanupDevice(); // Reap a previous worker after a terminal USB error.
++        if (_this->devId < 0 || !(_this->sampleRate > 0.0)) {
++            flog::error("No device or valid sample rate available");
++            return;
++        }
+         try {
+             _this->dev = SoapySDR::Device::make(_this->devArgs);
+-        }
+-        catch (const std::exception& e) {
+-            flog::error("Failed to open device: {}", e.what());
+-            return;
+-        }
+-
+-        _this->dev->setSampleRate(SOAPY_SDR_RX, _this->channelId, _this->sampleRate);
+-
+-        _this->dev->setAntenna(SOAPY_SDR_RX, _this->channelId, _this->antennaList[_this->uiAntennaId]);
+-
+-        if (_this->bandwidthList.size() > 2) {
+-            if (_this->bandwidthList[_this->uiBandwidthId] == -1)
+-                _this->dev->setBandwidth(SOAPY_SDR_RX, _this->channelId, _this->selectBwBySr(_this->sampleRates[_this->srId]));
+-            else
+-                _this->dev->setBandwidth(SOAPY_SDR_RX, _this->channelId, _this->bandwidthList[_this->uiBandwidthId]);
+-        }
+-
+-        if (_this->hasAgc) {
+-            _this->dev->setGainMode(SOAPY_SDR_RX, _this->channelId, _this->agc);
+-        }
+-
+-        int i = 0;
+-        for (auto gain : _this->gainList) {
+-            _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
+-            i++;
+-        }
+-
+-        _this->dev->setFrequency(SOAPY_SDR_RX, _this->channelId, _this->freq);
+-
+-        _this->devStream = _this->dev->setupStream(SOAPY_SDR_RX, "CF32");
+-        _this->dev->activateStream(_this->devStream);
+-        _this->running = true;
+-        _this->workerThread = std::thread(_worker, _this);
+-        flog::info("SoapyModule '{0}': Start!", _this->name);
++            if (!_this->dev) throw std::runtime_error("Device::make returned null");
++            _this->dev->setSampleRate(SOAPY_SDR_RX, _this->channelId, _this->sampleRate);
++    
++            if (!_this->antennaList.empty()) {
++                _this->dev->setAntenna(SOAPY_SDR_RX, _this->channelId, _this->antennaList.at(_this->uiAntennaId));
++            }
++    
++            if (_this->bandwidthList.size() > 2) {
++                if (_this->bandwidthList[_this->uiBandwidthId] == -1)
++                    _this->dev->setBandwidth(SOAPY_SDR_RX, _this->channelId, _this->selectBwBySr(_this->sampleRates[_this->srId]));
++                else
++                    _this->dev->setBandwidth(SOAPY_SDR_RX, _this->channelId, _this->bandwidthList[_this->uiBandwidthId]);
++            }
++    
++            if (_this->hasAgc) {
++                _this->dev->setGainMode(SOAPY_SDR_RX, _this->channelId, _this->agc);
++            }
++    
++            int i = 0;
++            for (auto gain : _this->gainList) {
++                _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
++                i++;
++            }
++    
++            _this->dev->setFrequency(SOAPY_SDR_RX, _this->channelId, _this->freq);
++    
++            _this->devStream = _this->dev->setupStream(SOAPY_SDR_RX, "CF32");
++            if (!_this->devStream) throw std::runtime_error("setupStream returned null");
++            const int status = _this->dev->activateStream(_this->devStream);
++            if (status != 0) throw std::runtime_error("activateStream failed: " + std::to_string(status));
++            _this->running.store(true, std::memory_order_release);
++            _this->workerThread = std::thread(_worker, _this);
++            flog::info("SoapyModule '{0}': Start!", _this->name);
++        } catch (const std::exception& e) {
++            flog::error("SoapyModule '{0}': Start failed: {1}", _this->name, e.what());
++            _this->cleanupDevice();
++        } catch (...) {
++            flog::error("Soapy start failed: unknown exception");
++            _this->cleanupDevice();
++        }
+     }
+ 
+     static void stop(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+-        if (!_this->running) { return; }
+-        _this->running = false;
+-        _this->dev->deactivateStream(_this->devStream);
+-        _this->dev->closeStream(_this->devStream);
+-        _this->stream.stopWriter();
+-        _this->workerThread.join();
+-        _this->stream.clearWriteStop();
+-        SoapySDR::Device::unmake(_this->dev);
+-
++        std::lock_guard<std::mutex> lock(_this->lifecycleMutex);
++        _this->cleanupDevice(); // Also works when the worker already cleared running.
+         flog::info("SoapyModule '{0}': Stop!", _this->name);
+     }
+ 
+     static void tune(double freq, void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+         _this->freq = freq;
+-        if (_this->running) {
++        if (_this->running && _this->dev) {
+             _this->dev->setFrequency(SOAPY_SDR_RX, _this->channelId, freq);
+         }
+         flog::info("SoapyModule '{0}': Tune: {1}!", _this->name, freq);
+@@ -396,7 +409,7 @@
+             return;
+         }
+ 
+-        if (_this->running) { SmGui::BeginDisabled(); }
++        if (_this->running && _this->dev) { SmGui::BeginDisabled(); }
+ 
+         SmGui::FillWidth();
+         SmGui::ForceSync();
+@@ -421,7 +434,7 @@
+             _this->selectDevice(config.conf["device"]);
+         }
+ 
+-        if (_this->running) { SmGui::EndDisabled(); }
++        if (_this->running && _this->dev) { SmGui::EndDisabled(); }
+ 
+         if (_this->antennaList.size() > 1) {
+             SmGui::LeftLabel("Antenna");
+@@ -445,9 +458,9 @@
+ 
+         if (_this->hasAgc) {
+             if (SmGui::Checkbox((std::string("AGC##_agc_sel_") + _this->name).c_str(), &_this->agc)) {
+-                if (_this->running) { _this->dev->setGainMode(SOAPY_SDR_RX, _this->channelId, _this->agc); }
++                if (_this->running && _this->dev) { _this->dev->setGainMode(SOAPY_SDR_RX, _this->channelId, _this->agc); }
+                 // When disabled, reset the gains
+-                if (!_this->agc) {
++                if (!_this->agc && _this->running && _this->dev) {
+                     int i = 0;
+                     for (auto gain : _this->gainList) {
+                         _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
+@@ -475,7 +488,7 @@
+                 res = SmGui::SliderFloatWithSteps((std::string("##_gain_sel_") + _this->name + gain).c_str(), &_this->uiGains[i], _this->gainRanges[i].minimum(), _this->gainRanges[i].maximum(), step);
+             }
+             if (res) {
+-                if (_this->running) {
++                if (_this->running && _this->dev) {
+                     _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
+                 }
+                 _this->saveCurrent();
+@@ -486,7 +499,7 @@
+             SmGui::LeftLabel("Bandwidth");
+             SmGui::FillWidth();
+             if (SmGui::Combo(CONCAT("##_bw_select_", _this->name), &_this->uiBandwidthId, _this->txtBwList.c_str())) {
+-                if (_this->running) {
++                if (_this->running && _this->dev) {
+                     if (_this->bandwidthList[_this->uiBandwidthId] == -1)
+                         _this->dev->setBandwidth(SOAPY_SDR_RX, _this->channelId, _this->selectBwBySr(_this->sampleRates[_this->srId]));
+                     else
+@@ -498,34 +511,34 @@
+     }
+ 
+     static void _worker(SoapyModule* _this) {
+-        int blockSize = _this->sampleRate / 200.0f;
+-        int flags = 0;
+-        long long timeMs = 0;
+-
+-        while (_this->running) {
+-            int res = _this->dev->readStream(_this->devStream, (void**)&_this->stream.writeBuf, blockSize, flags, timeMs);
+-            if (res < 1) {
+-                continue;
+-            }
+-            if (!_this->stream.swap(res)) { return; }
+-        }
++        const int blockSize = std::max(1, std::min(STREAM_BUFFER_SIZE, int(_this->sampleRate / 200.0)));
++        msi::receiveLoop(_this->running, blockSize,
++            [&] {
++                int flags = 0;
++                long long timeNs = 0;
++                void* buffers[] = { _this->stream.writeBuf };
++                return _this->dev->readStream(_this->devStream, buffers, blockSize, flags, timeNs, 100000);
++            },
++            [&](int count) { return _this->stream.swap(count); },
++            [&](const char* message, int code) { flog::error("Soapy RX: {0} ({1})", message, code); });
+     }
+ 
+     std::string name;
+     bool enabled = true;
+     dsp::stream<dsp::complex_t> stream;
+-    SoapySDR::Stream* devStream;
+-    SourceManager::SourceHandler handler;
++    SoapySDR::Stream* devStream = nullptr;
++    SourceManager::SourceHandler handler{};
+     SoapySDR::KwargsList devList;
+     SoapySDR::Kwargs devArgs;
+-    SoapySDR::Device* dev;
++    SoapySDR::Device* dev = nullptr;
+     std::string txtDevList;
+     std::string txtSrList;
+     std::thread workerThread;
+     int devId = -1;
+-    double freq;
+-    double sampleRate;
+-    bool running = false;
++    double freq = 0.0;
++    double sampleRate = 0.0;
++    std::atomic_bool running{false};
++    std::mutex lifecycleMutex;
+     bool hasAgc = false;
+     bool agc = false;
+     std::vector<double> sampleRates;

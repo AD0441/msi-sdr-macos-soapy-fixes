@@ -1,0 +1,100 @@
+--- a/source_modules/soapy_source/src/main.cpp
++++ b/source_modules/soapy_source/src/main.cpp
+@@ -8,6 +8,8 @@
+ #include <SoapySDR/Device.hpp>
+ #include <SoapySDR/Modules.hpp>
+ #include <SoapySDR/Logger.hpp>
++#include <SoapySDR/Errors.hpp>
++#include <atomic>
+ #include <core.h>
+ #include <gui/style.h>
+ #include <gui/smgui.h>
+@@ -250,6 +252,7 @@
+             else if (bandwidthList.size() > 2) {
+                 uiBandwidthId = 0;
+             }
++            if (uiBandwidthId < 0 || uiBandwidthId >= static_cast<int>(bandwidthList.size())) uiBandwidthId = 0;
+             if (hasAgc && config.conf["devices"][name].contains("agc")) {
+                 agc = config.conf["devices"][name]["agc"];
+             }
+@@ -329,6 +332,7 @@
+             return;
+         }
+ 
++        try {
+         _this->dev->setSampleRate(SOAPY_SDR_RX, _this->channelId, _this->sampleRate);
+ 
+         _this->dev->setAntenna(SOAPY_SDR_RX, _this->channelId, _this->antennaList[_this->uiAntennaId]);
+@@ -357,18 +361,28 @@
+         _this->running = true;
+         _this->workerThread = std::thread(_worker, _this);
+         flog::info("SoapyModule '{0}': Start!", _this->name);
++        } catch (const std::exception& e) {
++            flog::error("MSI reception could not start: {}", e.what());
++            if (_this->devStream) _this->dev->closeStream(_this->devStream);
++            SoapySDR::Device::unmake(_this->dev);
++            _this->devStream = nullptr;
++            _this->dev = nullptr;
++            _this->running = false;
++        }
+     }
+ 
+     static void stop(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+         if (!_this->running) { return; }
+         _this->running = false;
++        _this->stream.stopWriter();
++        _this->workerThread.join();
+         _this->dev->deactivateStream(_this->devStream);
+         _this->dev->closeStream(_this->devStream);
+-        _this->stream.stopWriter();
+-        _this->workerThread.join();
+         _this->stream.clearWriteStop();
+         SoapySDR::Device::unmake(_this->dev);
++        _this->dev = nullptr;
++        _this->devStream = nullptr;
+ 
+         flog::info("SoapyModule '{0}': Stop!", _this->name);
+     }
+@@ -447,7 +461,7 @@
+             if (SmGui::Checkbox((std::string("AGC##_agc_sel_") + _this->name).c_str(), &_this->agc)) {
+                 if (_this->running) { _this->dev->setGainMode(SOAPY_SDR_RX, _this->channelId, _this->agc); }
+                 // When disabled, reset the gains
+-                if (!_this->agc) {
++                if (!_this->agc && _this->running && _this->dev) {
+                     int i = 0;
+                     for (auto gain : _this->gainList) {
+                         _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
+@@ -505,6 +519,10 @@
+         while (_this->running) {
+             int res = _this->dev->readStream(_this->devStream, (void**)&_this->stream.writeBuf, blockSize, flags, timeMs);
+             if (res < 1) {
++                if (res < 0 && res != SOAPY_SDR_TIMEOUT && res != SOAPY_SDR_OVERFLOW) {
++                    flog::error("MSI reception stopped: {}. Stop and restart reception.", SoapySDR::errToStr(res));
++                    return;
++                }
+                 continue;
+             }
+             if (!_this->stream.swap(res)) { return; }
+@@ -514,18 +532,18 @@
+     std::string name;
+     bool enabled = true;
+     dsp::stream<dsp::complex_t> stream;
+-    SoapySDR::Stream* devStream;
++    SoapySDR::Stream* devStream = nullptr;
+     SourceManager::SourceHandler handler;
+     SoapySDR::KwargsList devList;
+     SoapySDR::Kwargs devArgs;
+-    SoapySDR::Device* dev;
++    SoapySDR::Device* dev = nullptr;
+     std::string txtDevList;
+     std::string txtSrList;
+     std::thread workerThread;
+     int devId = -1;
+     double freq;
+     double sampleRate;
+-    bool running = false;
++    std::atomic<bool> running{false};
+     bool hasAgc = false;
+     bool agc = false;
+     std::vector<double> sampleRates;

@@ -1,5 +1,7 @@
 # SDR++: SoapyMiri, bandwidth y libusb
 
+> Esta es la receta inicial. La [actualizacion de noviembre de 2026](msi-integrated-apps.md) corrige tambien la limpieza asincrona del driver: unificar libusb por si solo no evito todos los cierres. Brown y CE requieren sus propios plugins.
+
 ## Objetivo
 
 Hacer funcionar un MSI.SDR / MSi2500 en SDR++ 1.3.0 para macOS Apple Silicon usando SoapySDR.

@@ -1,0 +1,167 @@
+--- a/SoapyMiri.hpp
++++ b/SoapyMiri.hpp
+@@ -19,6 +19,8 @@
+ } miriSampleFormat;
+ 
+ class SoapyMiri : public SoapySDR::Device {
++    std::atomic<bool> rxFailed{false};
++    std::atomic<bool> rxDone{true};
+ public:
+     SoapyMiri(const SoapySDR::Kwargs &args);
+ 
+@@ -236,4 +238,4 @@
+     std::mutex _buf_mutex;
+     std::condition_variable _buf_cond;
+ 
+-};
+\ No newline at end of file
++};
+--- a/Settings.cpp
++++ b/Settings.cpp
+@@ -1,4 +1,6 @@
+ #include "SoapyMiri.hpp"
++#include <algorithm>
++#include <cmath>
+ 
+ /*******************************************************************
+  * Identification API
+@@ -24,10 +26,17 @@
+     if (mirisdr_open(&dev, deviceIdx) != 0) {
+         throw std::runtime_error("Unable to open LibMiriSDR device.");
+     }
++    sampleRate = mirisdr_get_sample_rate(dev);
++#ifdef __APPLE__
++    // Bulk avoids macOS isochronous re-submission failures on this MSI2500.
++    char transferMode[] = "BULK";
++    mirisdr_set_transfer(dev, transferMode);
++#endif
+ }
+ 
+ SoapyMiri::~SoapyMiri(void) {
+     if (dev) {
++        deactivateStream(nullptr, 0, 0);
+         mirisdr_close(dev);
+     }
+ }
+@@ -259,7 +268,8 @@
+     SoapySDR::RangeList results;
+ 
+     if (name == "RF") {
+-        results.push_back(SoapySDR::Range(0e6, 2000e6)); // DC to 2 GHz. Because why not?
++        // The connected MSI2500/MSI001 receiver is specified for 10 kHz to 1 GHz.
++        results.push_back(SoapySDR::Range(10000, 1000000000));
+     }
+     return results;
+ }
+@@ -280,7 +290,7 @@
+     if (!dev)
+         return;
+ 
+-    SoapySDR_logf(SOAPY_SDR_DEBUG, "Setting sample rate: %d", rate);
++    SoapySDR_logf(SOAPY_SDR_DEBUG, "Setting sample rate: %.0f", rate);
+     if (mirisdr_set_sample_rate(dev, (uint32_t) rate) != 0) {
+         throw std::runtime_error("mirisdr_set_sample_rate failed");
+     }
+@@ -331,7 +341,20 @@
+     if (!dev)
+         return;
+ 
+-    if (mirisdr_set_bandwidth(dev, (uint32_t) bw) != 0) {
++    if (!std::isfinite(bw) || bw < 0) {
++        SoapySDR_log(SOAPY_SDR_WARNING, "Ignoring invalid MSI filter bandwidth.");
++        return;
++    }
++    const auto supported = listBandwidths(direction, channel);
++    const double requested = bw == 0 ? sampleRate : bw;
++    auto it = std::lower_bound(supported.begin(), supported.end(), requested);
++    // Prefer a filter no wider than the request, including Auto at the current rate.
++    if (it == supported.end() || (it != supported.begin() && *it > requested)) --it;
++    const double safeBw = *it;
++    if (safeBw != bw) {
++        SoapySDR_logf(SOAPY_SDR_WARNING, "MSI filter bandwidth %.0f Hz mapped to supported %.0f Hz.", bw, safeBw);
++    }
++    if (mirisdr_set_bandwidth(dev, (uint32_t) safeBw) != 0) {
+         throw std::runtime_error("mirisdr_set_bandwidth failed");
+     }
+ }
+@@ -358,7 +381,6 @@
+     results.push_back(6000000); // MIRISDR_BW_6MHZ
+     results.push_back(7000000); // MIRISDR_BW_7MHZ
+     results.push_back(8000000); // MIRISDR_BW_8MHZ
+-    results.push_back(14000000); // MIRISDR_BW_MAX
+ 
+     return results;
+ }
+--- a/Streaming.cpp
++++ b/Streaming.cpp
+@@ -11,7 +11,7 @@
+ }
+ 
+ std::string SoapyMiri::getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const {
+-    fullScale = 1 << 16;
++    fullScale = 32768;
+     return SOAPY_SDR_CS16;
+ }
+ 
+@@ -61,7 +61,11 @@
+ }
+ 
+ void SoapyMiri::rx_async_operation(void) {
+-    mirisdr_read_async(dev, &_rx_callback, this, optNumBuffers, optBufferLength);
++    if (mirisdr_read_async(dev, &_rx_callback, this, optNumBuffers, optBufferLength) < 0) {
++        rxFailed = true;
++        SoapySDR_log(SOAPY_SDR_ERROR, "MSI USB stream stopped after a transfer error. Stop and restart reception.");
++    }
++    rxDone = true;
+ }
+ 
+ void SoapyMiri::rx_callback(unsigned char *buf, uint32_t len) {
+@@ -183,7 +187,9 @@
+     remainingElems = 0;
+ 
+     if (!_rx_async_thread.joinable()) {
++        rxFailed = false;
+         mirisdr_reset_buffer(dev);
++        rxDone = false;
+         _rx_async_thread = std::thread(&SoapyMiri::rx_async_operation, this);
+     }
+ 
+@@ -195,7 +201,11 @@
+         return 0;
+ 
+     if (_rx_async_thread.joinable()) {
+-        mirisdr_cancel_async(dev);
++        // Cancellation may arrive before libmirisdr has published RUNNING.
++        while (!rxDone) {
++            mirisdr_cancel_async(dev);
++            std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        }
+         _rx_async_thread.join();
+     }
+     return 0;
+@@ -260,7 +270,8 @@
+  ******************************************************************/
+ 
+ size_t SoapyMiri::getNumDirectAccessBuffers(SoapySDR::Stream *stream) {
+-    return buffs.size();
++    // Direct multi-buffer reservations are not implemented by this ring queue.
++    return 0;
+ }
+ 
+ int SoapyMiri::getDirectAccessBufferAddrs(SoapySDR::Stream *stream, const size_t handle, void **outBuffs) {
+@@ -298,7 +309,7 @@
+         std::unique_lock<std::mutex> lock(_buf_mutex);
+         _buf_cond.wait_for(lock, std::chrono::microseconds(timeoutUs), [this] { return _buf_count != 0; });
+         if (_buf_count == 0) {
+-            return SOAPY_SDR_TIMEOUT;
++            return rxFailed ? SOAPY_SDR_STREAM_ERROR : SOAPY_SDR_TIMEOUT;
+         }
+     }
+ 
+@@ -315,4 +326,4 @@
+ void SoapyMiri::releaseReadBuffer(SoapySDR::Stream *stream, const size_t handle) {
+     //TODO this wont handle out of order releases
+     _buf_count--;
+-}
+\ No newline at end of file
++}
