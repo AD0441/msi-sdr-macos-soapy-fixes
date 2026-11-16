@@ -1,0 +1,488 @@
+{
+  "schema": 1,
+  "revision": "2026.11.16.1",
+  "environment": {
+    "macOS": "27.3",
+    "architecture": "arm64",
+    "receiver": "MSI2500/MSI001 1df7:2500",
+    "libusb": "1.0.30"
+  },
+  "baseline": [
+    {
+      "case": "driver-start",
+      "exit": 2,
+      "observed": {
+        "expected": -7,
+        "first_error": 0,
+        "first_samples": 0,
+        "second_result": 0,
+        "recovered_samples": 608832
+      }
+    },
+    {
+      "case": "driver-stop",
+      "exit": 2,
+      "observed": {
+        "expected": -7,
+        "first_error": 0,
+        "first_samples": 608832,
+        "second_result": 0,
+        "recovered_samples": 612864
+      }
+    },
+    {
+      "case": "soapy-start",
+      "exit": 2,
+      "observed": {
+        "mode": "start",
+        "first_activation": 0,
+        "first_stop": 0,
+        "failure_detected": false,
+        "restart": 0,
+        "recovered_samples": 405504,
+        "final_stop": 0
+      }
+    },
+    {
+      "case": "soapy-stop",
+      "exit": 2,
+      "observed": {
+        "mode": "stop",
+        "first_activation": 0,
+        "first_stop": 0,
+        "failure_detected": false,
+        "restart": 0,
+        "recovered_samples": 414720,
+        "final_stop": 0
+      }
+    }
+  ],
+  "baseline_open": [
+    {
+      "case": "reset-reopen",
+      "satisfies_new_contract": false,
+      "exit": 0
+    },
+    {
+      "case": "busy-no-reset",
+      "satisfies_new_contract": false,
+      "exit": 2
+    },
+    {
+      "case": "adc-init-error",
+      "satisfies_new_contract": false,
+      "exit": 2
+    }
+  ],
+  "fault_regressions": [
+    {
+      "case": "driver-start",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 0,
+        "second_result": 0,
+        "recovered_samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "driver-stop",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 612864,
+        "second_result": 0,
+        "recovered_samples": 612864
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "driver-alternate",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 0,
+        "second_result": 0,
+        "recovered_samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "driver-first-error",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 0,
+        "second_result": 0,
+        "recovered_samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "driver-pause",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 608832,
+        "second_result": 0,
+        "recovered_samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "driver-resume",
+      "exit": 0,
+      "observed": {
+        "expected": -7,
+        "first_error": -7,
+        "first_samples": 608832,
+        "second_result": 0,
+        "recovered_samples": 604800
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "soapy-start",
+      "exit": 0,
+      "observed": {
+        "mode": "start",
+        "first_activation": -2,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "soapy-stop",
+      "exit": 0,
+      "observed": {
+        "mode": "stop",
+        "first_activation": 0,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "soapy-alternate",
+      "exit": 0,
+      "observed": {
+        "mode": "alternate",
+        "first_activation": -2,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "soapy-first-error",
+      "exit": 0,
+      "observed": {
+        "mode": "start-stop",
+        "first_activation": -2,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "reset-reopen",
+      "exit": 0,
+      "observed": {
+        "mode": "reset",
+        "first_result": 0,
+        "stream_result": 0,
+        "samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "busy-no-reset",
+      "exit": 0,
+      "observed": {
+        "mode": "busy",
+        "first_result": -6,
+        "stream_result": 0,
+        "samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "advisory-driver-flag",
+      "exit": 0,
+      "observed": {
+        "mode": "reset",
+        "first_result": 0,
+        "stream_result": 0,
+        "samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    },
+    {
+      "case": "adc-init-error",
+      "exit": 0,
+      "observed": {
+        "mode": "init",
+        "first_result": -7,
+        "stream_result": 0,
+        "samples": 608832
+      },
+      "pending_transfers": 0,
+      "transfer_lifetimes_balanced": true,
+      "handles_balanced": true
+    }
+  ],
+  "sdrangel_abi_0_8_3": [
+    {
+      "mode": "start",
+      "exit": 0,
+      "result": {
+        "mode": "start",
+        "first_activation": -2,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      }
+    },
+    {
+      "mode": "stop",
+      "exit": 0,
+      "result": {
+        "mode": "stop",
+        "first_activation": 0,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      }
+    },
+    {
+      "mode": "alternate",
+      "exit": 0,
+      "result": {
+        "mode": "alternate",
+        "first_activation": -2,
+        "first_stop": -2,
+        "failure_detected": true,
+        "restart": 0,
+        "recovered_samples": 423936,
+        "final_stop": 0
+      }
+    }
+  ],
+  "lifecycle": {
+    "start_stop_cycles": 100,
+    "rate_transitions": [
+      "2.048",
+      "6",
+      "2.048",
+      "6",
+      "2.048"
+    ],
+    "active_destruction": "passed"
+  },
+  "continuous": {
+    "duration_seconds": 120,
+    "sample_rate": 2048000,
+    "samples": 245772288,
+    "read_errors": 0,
+    "driver_sha256": "bd5d87db8164688d62578a485abcfc053a0fec74e1c4c2856eb9dd0a44e1eb4f"
+  },
+  "application_smoke": [
+    {
+      "application": "SDR++",
+      "scenario": "start-error",
+      "alive_after_10s": true,
+      "reception_started": false,
+      "error_reported": true,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++",
+      "scenario": "busy",
+      "alive_after_10s": true,
+      "reception_started": false,
+      "error_reported": true,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++",
+      "scenario": "normal",
+      "alive_after_10s": true,
+      "reception_started": true,
+      "error_reported": false,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++Brown",
+      "scenario": "busy",
+      "alive_after_10s": true,
+      "reception_started": false,
+      "error_reported": true,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++Brown",
+      "scenario": "normal",
+      "alive_after_10s": true,
+      "reception_started": true,
+      "error_reported": false,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++CE",
+      "scenario": "busy",
+      "alive_after_10s": true,
+      "reception_started": false,
+      "error_reported": true,
+      "passed": true,
+      "exit_after_test_stop": -15
+    },
+    {
+      "application": "SDR++CE",
+      "scenario": "normal",
+      "alive_after_10s": true,
+      "reception_started": true,
+      "error_reported": false,
+      "passed": true,
+      "exit_after_test_stop": -15
+    }
+  ],
+  "patch_sha256": {
+    "libmirisdr-usb-control-errors.patch": "ed4726f4af7140d202e5b17e57cd36e80c0de3188a0697cdccece91be7387c80",
+    "soapymiri-usb-control-errors.patch": "128cc74a8a9ccd2960e565f2b541273fb54b742122bf480e77b909730b6c265d",
+    "sdrpp-activation-errors.patch": "167b6af647c7af7b1651605fd88902afa7daf2f41a825e4998396e8016cbf19d",
+    "sdrpp-brown-open-errors.patch": "dd849c8f4afd080d032f3334c81bfb8a92de6f7760d9fa728bdb5260d9b6c4dc",
+    "sdrpp-ce-open-errors.patch": "129cdee57ba617613916682859748b233ed103c247000808272682cfc88399ba"
+  },
+  "limits": [
+    "One receiver, one Mac; no physical disconnect/reconnect test.",
+    "Application smoke uses separate profiles and intentional process termination after ten seconds.",
+    "No exhaustive visual, audio, decoder or RF calibration validation.",
+    "Zero read errors is not a claim of complete end-to-end sample continuity."
+  ],
+  "delivery": [
+    {
+      "application": "SDR++ MSI Integrado.app",
+      "revision": "2026.11.16.1",
+      "signature": "valid",
+      "archive_roundtrip": "identical",
+      "installed_content": "identical",
+      "files_verified": 118
+    },
+    {
+      "application": "SDR++Brown MSI Integrado.app",
+      "revision": "2026.11.16.1",
+      "signature": "valid",
+      "archive_roundtrip": "identical",
+      "installed_content": "identical",
+      "files_verified": 132
+    },
+    {
+      "application": "SDR++CE MSI Integrado.app",
+      "revision": "2026.11.16.1",
+      "signature": "valid",
+      "archive_roundtrip": "identical",
+      "installed_content": "identical",
+      "files_verified": 108
+    },
+    {
+      "application": "SDRangel MSI Integrado.app",
+      "revision": "2026.11.16.1",
+      "signature": "valid",
+      "archive_roundtrip": "identical",
+      "installed_content": "identical",
+      "files_verified": 2443
+    }
+  ],
+  "installed_reception": [
+    {
+      "application": "SDR++",
+      "abi": "0.8",
+      "revision": "2026.11.16.1",
+      "exit": 0,
+      "result": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00685247",
+      "private_libraries_confirmed": true,
+      "component_hashes_verified": true
+    },
+    {
+      "application": "SDR++Brown",
+      "abi": "0.8",
+      "revision": "2026.11.16.1",
+      "exit": 0,
+      "result": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00684487",
+      "private_libraries_confirmed": true,
+      "component_hashes_verified": true
+    },
+    {
+      "application": "SDR++CE",
+      "abi": "0.8",
+      "revision": "2026.11.16.1",
+      "exit": 0,
+      "result": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00687357",
+      "private_libraries_confirmed": true,
+      "component_hashes_verified": true
+    },
+    {
+      "application": "SDRangel",
+      "abi": "0.8-3",
+      "revision": "2026.11.16.1",
+      "exit": 0,
+      "result": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00687482",
+      "private_libraries_confirmed": true,
+      "component_hashes_verified": true
+    }
+  ]
+}

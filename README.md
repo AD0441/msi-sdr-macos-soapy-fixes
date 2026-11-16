@@ -26,6 +26,8 @@ Este proyecto reúne parches, componentes de integración y pruebas para usar el
 
 También se conserva el contenido y el historial del antiguo proyecto `sdrpp-macos-fixes`: las reparaciones generales de dependencias y la recuperación del ATV Decoder forman ahora parte de este repositorio. [Detalle de la unificación](docs/repository-consolidation.md).
 
+**Revisión 2026.11.16.1:** se corrigió el falso éxito al fallar comandos USB de inicio/parada o la selección del modo. El controlador conserva el primer error, limpia las transferencias pendientes y vuelve a detectar el receptor en su puerto si un reinicio USB invalida su referencia. [Cambios, pruebas y límites](docs/usb-control-errors.md).
+
 ### Qué resuelve
 
 | Problema observado | Solución incorporada | Alcance |
@@ -114,6 +116,8 @@ Puedes apoyar el trabajo en [Ko-fi](https://ko-fi.com/C0C51WQ1T0).
 This project brings together patches, integration components and tests for using the **MSI2500 + MSI001** receiver in existing applications. The approach improves the driver and its connection to each program. Local **SDR++, SDR++Brown, SDR++CE and SDRangel** variants were built and tested with the suffix `MSI Integrado`.
 
 It also preserves the content and history of the former `sdrpp-macos-fixes` project: general dependency repair and ATV Decoder recovery now live in this repository. [Consolidation details](docs/repository-consolidation.md).
+
+**Revision 2026.11.16.1:** corrected false success after USB start/stop or alternate-setting failures. The driver preserves the first error, drains pending transfers and rediscovers the receiver at its physical port when a USB reset invalidates the handle. [Changes, tests and limitations](docs/usb-control-errors.md).
 
 ### What it addresses
 

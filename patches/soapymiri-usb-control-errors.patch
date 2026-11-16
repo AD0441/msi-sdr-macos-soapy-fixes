@@ -1,0 +1,106 @@
+diff --git a/Settings.cpp b/Settings.cpp
+index 765fa73..67da620 100644
+--- a/Settings.cpp
++++ b/Settings.cpp
+@@ -23,8 +23,9 @@ SoapyMiri::SoapyMiri(const SoapySDR::Kwargs &args) :
+     deviceIdx = (uint32_t) std::stoi(args.at("index"));
+ 
+     SoapySDR_logf(SOAPY_SDR_DEBUG, "LibMiriSDR opening device %d", deviceIdx);
+-    if (mirisdr_open(&dev, deviceIdx) != 0) {
+-        throw std::runtime_error("Unable to open LibMiriSDR device.");
++    const int openStatus = mirisdr_open(&dev, deviceIdx);
++    if (openStatus != 0) {
++        throw std::runtime_error("Unable to open LibMiriSDR device (USB error " + std::to_string(openStatus) + ").");
+     }
+     sampleRate = mirisdr_get_sample_rate(dev);
+ #ifdef __APPLE__
+diff --git a/Streaming.cpp b/Streaming.cpp
+index adc0bd5..93a5829 100644
+--- a/Streaming.cpp
++++ b/Streaming.cpp
+@@ -61,11 +61,15 @@ static void _rx_callback(unsigned char *buf, uint32_t len, void *ctx) {
+ }
+ 
+ void SoapyMiri::rx_async_operation(void) {
+-    if (mirisdr_read_async(dev, &_rx_callback, this, optNumBuffers, optBufferLength) < 0) {
+-        rxFailed = true;
+-        SoapySDR_log(SOAPY_SDR_ERROR, "MSI USB stream stopped after a transfer error. Stop and restart reception.");
++    const int result = mirisdr_read_async(dev, &_rx_callback, this, optNumBuffers, optBufferLength);
++    {
++        std::lock_guard<std::mutex> lock(_buf_mutex);
++        rxFailed = result < 0;
++        rxDone = true;
+     }
+-    rxDone = true;
++    _buf_cond.notify_all();
++    if (result < 0)
++        SoapySDR_logf(SOAPY_SDR_ERROR, "MSI USB stream failed (USB error %d). Stop and restart reception.", result);
+ }
+ 
+ void SoapyMiri::rx_callback(unsigned char *buf, uint32_t len) {
+@@ -180,19 +184,38 @@ int SoapyMiri::activateStream(
+         const long long timeNs,
+         const size_t numElems
+ ) {
+-    if (!dev)
+-        return 0;
+-
+-    resetBuffer = true;
+-    remainingElems = 0;
++    if (!dev) return SOAPY_SDR_STREAM_ERROR;
++    if (_rx_async_thread.joinable())
++        return rxDone || rxFailed ? SOAPY_SDR_STREAM_ERROR : 0;
+ 
+-    if (!_rx_async_thread.joinable()) {
++    {
++        std::lock_guard<std::mutex> lock(_buf_mutex);
++        _buf_head = _buf_tail = 0;
++        _buf_count = 0;
++        _overflowEvent = false;
++        resetBuffer = false;
++        remainingElems = 0;
+         rxFailed = false;
+-        mirisdr_reset_buffer(dev);
+         rxDone = false;
+-        _rx_async_thread = std::thread(&SoapyMiri::rx_async_operation, this);
+     }
+-
++    if (mirisdr_reset_buffer(dev) < 0) {
++        rxDone = true;
++        rxFailed = true;
++        return SOAPY_SDR_STREAM_ERROR;
++    }
++    _rx_async_thread = std::thread(&SoapyMiri::rx_async_operation, this);
++    // Report success only after samples arrive; wake immediately on worker failure.
++    std::unique_lock<std::mutex> lock(_buf_mutex);
++    bool ready = _buf_cond.wait_for(lock, std::chrono::seconds(3), [this] {
++        return _buf_count != 0 || rxDone;
++    });
++    bool failed = rxFailed || rxDone;
++    lock.unlock();
++    if (!ready || failed) {
++        deactivateStream(stream, 0, 0);
++        if (!ready) SoapySDR_log(SOAPY_SDR_ERROR, "MSI USB start timed out: no samples received.");
++        return ready ? SOAPY_SDR_STREAM_ERROR : SOAPY_SDR_TIMEOUT;
++    }
+     return 0;
+ }
+ 
+@@ -208,7 +231,7 @@ int SoapyMiri::deactivateStream(SoapySDR::Stream *stream, const int flags, const
+         }
+         _rx_async_thread.join();
+     }
+-    return 0;
++    return rxFailed ? SOAPY_SDR_STREAM_ERROR : 0;
+ }
+ 
+ int SoapyMiri::readStream(
+@@ -307,7 +330,7 @@ int SoapyMiri::acquireReadBuffer(
+     // wait for a buffer to become available
+     if (_buf_count == 0) {
+         std::unique_lock<std::mutex> lock(_buf_mutex);
+-        _buf_cond.wait_for(lock, std::chrono::microseconds(timeoutUs), [this] { return _buf_count != 0; });
++        _buf_cond.wait_for(lock, std::chrono::microseconds(timeoutUs), [this] { return _buf_count != 0 || rxDone; });
+         if (_buf_count == 0) {
+             return rxFailed ? SOAPY_SDR_STREAM_ERROR : SOAPY_SDR_TIMEOUT;
+         }

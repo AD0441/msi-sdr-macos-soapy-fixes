@@ -1,0 +1,80 @@
+diff --git a/source_modules/soapy_source/src/main.cpp b/source_modules/soapy_source/src/main.cpp
+index eb9e0d8..40b1e60 100644
+--- a/source_modules/soapy_source/src/main.cpp
++++ b/source_modules/soapy_source/src/main.cpp
+@@ -10,6 +10,7 @@
+ #include <SoapySDR/Logger.hpp>
+ #include <SoapySDR/Errors.hpp>
+ #include <atomic>
++#include <cmath>
+ #include <core.h>
+ #include <gui/style.h>
+ #include <gui/smgui.h>
+@@ -165,9 +166,12 @@ private:
+         SoapySDR::Device* dev = NULL;
+         try {
+             dev = SoapySDR::Device::make(devArgs);
++            if (!dev) throw std::runtime_error("Device::make returned null");
+         }
+         catch (const std::exception& e) {
+             flog::error("Could not open device: {}", e.what());
++            devId = -1;
++            sampleRate = 0.0;
+             return;
+         }
+ 
+@@ -210,6 +214,15 @@ private:
+         }
+ 
+         sampleRates = dev->listSampleRates(SOAPY_SDR_RX, channelId);
++        sampleRates.erase(std::remove_if(sampleRates.begin(), sampleRates.end(),
++            [](double rate) { return !std::isfinite(rate) || rate <= 0.0; }), sampleRates.end());
++        if (sampleRates.empty()) {
++            SoapySDR::Device::unmake(dev);
++            devId = -1;
++            sampleRate = 0.0;
++            flog::error("No valid sample rate available for the selected device");
++            return;
++        }
+         txtSrList = "";
+         for (double sr : sampleRates) {
+             if (sr > 1.0e3 && sr <= 1.0e6) {
+@@ -305,7 +318,9 @@ private:
+     static void menuSelected(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+         flog::info("SoapyModule '{0}': Menu Select!", _this->name);
+-        if (_this->devList.size() == 0) {
++        if (_this->devList.empty() || _this->devId < 0 ||
++            !std::isfinite(_this->sampleRate) || _this->sampleRate <= 0.0) {
++            flog::error("Soapy source unavailable: select Refresh after the USB device is available");
+             return;
+         }
+         core::setInputSampleRate(_this->sampleRate);
+@@ -319,13 +334,14 @@ private:
+     static void start(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+         if (_this->running) { return; }
+-        if (_this->devId < 0) {
+-            flog::error("No device available");
++        if (_this->devId < 0 || !std::isfinite(_this->sampleRate) || _this->sampleRate <= 0.0) {
++            flog::error("No device or valid sample rate available");
+             return;
+         }
+ 
+         try {
+             _this->dev = SoapySDR::Device::make(_this->devArgs);
++            if (!_this->dev) throw std::runtime_error("Device::make returned null");
+         }
+         catch (const std::exception& e) {
+             flog::error("Failed to open device: {}", e.what());
+@@ -357,7 +373,9 @@ private:
+         _this->dev->setFrequency(SOAPY_SDR_RX, _this->channelId, _this->freq);
+ 
+         _this->devStream = _this->dev->setupStream(SOAPY_SDR_RX, "CF32");
+-        _this->dev->activateStream(_this->devStream);
++        if (!_this->devStream) throw std::runtime_error("setupStream returned null");
++        const int status = _this->dev->activateStream(_this->devStream);
++        if (status != 0) throw std::runtime_error("activateStream failed: " + std::to_string(status));
+         _this->running = true;
+         _this->workerThread = std::thread(_worker, _this);
+         flog::info("SoapyModule '{0}': Start!", _this->name);

@@ -1,5 +1,7 @@
 # Validacion de noviembre de 2026
 
+La primera entrega se describe a continuacion. Para la revision posterior `2026.11.16.1`, ver [errores USB y recuperacion](usb-control-errors.md) y su [evidencia estructurada](../tests/results/usb-control-errors-2026-11-16.json).
+
 Entorno: MacBookPro17,1, ARM64, macOS 27.3. Receptor conectado MSI2500/MSI001. SoapySDR 0.8.1 y variante ABI 0.8-3 de SDRangel; libusb 1.0.30. Las dependencias utilizadas fijan un minimo efectivo de macOS 26, aunque algunos originales declaren versiones anteriores.
 
 ## Evidencia funcional

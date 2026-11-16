@@ -20,6 +20,22 @@ El parche SoapyMiri configura un perfil para el MSI2500/MSI001 probado, informad
 
 ## Orden recomendado
 
+### Extension 2026.11.16.1
+
+Los siguientes parches se aplican **despues** del parche de estabilidad correspondiente de la tabla anterior:
+
+| Parche adicional | Aplicar sobre | Alcance |
+|---|---|---|
+| `libmirisdr-usb-control-errors.patch` | Base fijada + `libmirisdr-async-lifetime.patch` | Propagar fallos USB, conservar el primer error, reclamar antes de reiniciar y reabrir el mismo puerto tras un reset que invalida el handle. |
+| `soapymiri-usb-control-errors.patch` | Base fijada + `soapymiri-msi-macos-stability.patch` | Confirmar muestras antes de declarar arranque correcto, despertar lectores al fallar y comunicar error de parada. |
+| `sdrpp-activation-errors.patch` | Base fijada + `sdrpp-soapy-stability.patch` | Comprobar activacion y evitar tasa cero/invalida al fallar la apertura. |
+| `sdrpp-brown-open-errors.patch` | Base fijada + `sdrpp-brown-soapy-stability.patch` | Evitar iniciar DSP con tasa cero/invalida cuando falla la apertura en Brown. |
+| `sdrpp-ce-open-errors.patch` | Base fijada + `sdrpp-ce-soapy-stability.patch` | Evitar iniciar DSP con tasa cero/invalida cuando falla la apertura en CE. |
+
+Pruebas y comandos: [usb-control-errors.md](../docs/usb-control-errors.md). Estos parches no reemplazan ni duplican los parches anteriores; amplian esa base.
+
+### Compilacion
+
 1. Aplicar y compilar `libmirisdr-async-lifetime.patch` como C11.
 2. Aplicar el parche de SoapyMiri y compilar una variante por ABI SoapySDR: 0.8 y 0.8-3.
 3. Compilar el plugin correspondiente de cada SDR++, con los headers y el nucleo del mismo fork.

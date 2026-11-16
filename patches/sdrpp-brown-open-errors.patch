@@ -1,0 +1,44 @@
+diff --git a/source_modules/soapy_source/src/main.cpp b/source_modules/soapy_source/src/main.cpp
+index 5e63b95..c1349e7 100644
+--- a/source_modules/soapy_source/src/main.cpp
++++ b/source_modules/soapy_source/src/main.cpp
+@@ -186,10 +186,12 @@ private:
+         SoapySDR::Device* dev = nullptr;
+         try {
+             dev = SoapySDR::Device::make(effectiveDeviceArgs);
++            if (!dev) throw std::runtime_error("Device::make returned null");
+         }
+         catch (const std::exception& e) {
+             flog::error("SoapyModule '{0}': Could not make SoapySDR device: {1}", this->name, e.what());
+             devId = -1;
++            sampleRate = 0.0;
+             return;
+         }
+ 
+@@ -232,6 +234,15 @@ private:
+         }
+ 
+         sampleRates = dev->listSampleRates(SOAPY_SDR_RX, channelId);
++        sampleRates.erase(std::remove_if(sampleRates.begin(), sampleRates.end(),
++            [](double rate) { return !std::isfinite(rate) || rate <= 0.0; }), sampleRates.end());
++        if (sampleRates.empty()) {
++            SoapySDR::Device::unmake(dev);
++            devId = -1;
++            sampleRate = 0.0;
++            flog::error("No valid sample rate available for the selected device");
++            return;
++        }
+         txtSrList = "";
+         for (double sr : sampleRates) {
+             if (sr > 1.0e3 && sr <= 1.0e6) {
+@@ -349,7 +360,9 @@ private:
+     static void menuSelected(void* ctx) {
+         SoapyModule* _this = (SoapyModule*)ctx;
+         flog::info("SoapyModule '{0}': Menu Select!", _this->name);
+-        if (_this->devList.size() == 0) {
++        if (_this->devList.empty() || _this->devId < 0 ||
++            !std::isfinite(_this->sampleRate) || _this->sampleRate <= 0.0) {
++            flog::error("Soapy source unavailable: select Refresh after the USB device is available");
+             return;
+         }
+         core::setInputSampleRate(_this->sampleRate);

@@ -1,5 +1,7 @@
 # Integracion MSI en SDR++, Brown, CE y SDRangel
 
+Revision local `2026.11.16.1`: [manejo de errores USB, reapertura y fuente no disponible](usb-control-errors.md). Mantiene los componentes privados y los perfiles de esta guia, y agrega las protecciones descritas en esa revision.
+
 ## Resultado
 
 Se construyeron cuatro variantes locales ARM64 con el sufijo `MSI Integrado`. Cada bundle incluye libusb, libmirisdr y SoapyMiri, y carga sus componentes MSI desde el propio paquete. Los originales se conservan.

@@ -20,7 +20,8 @@ static size_t readFor(SoapySDR::Device *dev, SoapySDR::Stream *stream, double se
     return count;
 }
 
-int main() {
+int main(int argc, char **argv) {
+    const int cycles = argc > 1 ? std::stoi(argv[1]) : 30;
     auto *dev = SoapySDR::Device::make("driver=soapyMiri");
     dev->setSampleRate(SOAPY_SDR_RX, 0, 2048000);
     for (double requested : {0.0, 1536000.0, 10000000.0, 14000000.0, -1.0,
@@ -32,11 +33,10 @@ int main() {
     }
     dev->setFrequency(SOAPY_SDR_RX, 0, 100000000);
     auto *stream = dev->setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32);
-    for (int i=0;i<30;++i) {
-        dev->activateStream(stream);
-        dev->deactivateStream(stream);
+    for (int i=0;i<cycles;++i) {
+        if (dev->activateStream(stream) != 0 || dev->deactivateStream(stream) != 0) return 4;
     }
-    std::cout << "immediate_stop_cycles=30" << std::endl;
+    std::cout << "start_stop_cycles=" << cycles << std::endl;
     dev->activateStream(stream);
     size_t samples = readFor(dev, stream, 1);
     dev->deactivateStream(stream);
