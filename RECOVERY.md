@@ -87,6 +87,12 @@ recuperar exactamente los paquetes preservados usa `restore`.
 
 ### Estado, límites y continuidad
 
+- Recuperación verificada el **16 de noviembre de 2026**: clon nuevo,
+  diez archivos descargados de GitHub con SHA-256 correcto, cuatro apps
+  restauradas y cuatro reconstruidas/firma verificada. Los componentes MSI
+  reconstruidos recibieron muestras reales sin errores de lectura en cuatro
+  capturas de aproximadamente un segundo. Los tres perfiles nuevos SDR++
+  llegaron al arranque de la fuente; la prueba los terminó a los seis segundos.
 - Versión preservada: **2026.11.16.1**, Apple Silicon arm64, macOS mínimo 26.
 - Fuentes y orden de parches: [manifest](recovery/manifest.json) y
   [bases de los parches](patches/README.md). Brown y CE utilizan snapshots
@@ -191,6 +197,13 @@ downloaded-input checks on the same Mac. These are not a freshly formatted
 machine test. Public CI runs offline guardrails, not radio tests or private
 asset builds. Physical unplug/replug, extended GUI/audio sessions and RF
 calibration remain pending; see the [runtime evidence](docs/validation-2026-11.md).
+
+Verified on **November 16, 2026**: a fresh public clone, ten SHA-256-checked
+GitHub downloads, four restored applications and four rebuilt/signed bundles.
+Four brief captures through the rebuilt MSI components had zero read errors;
+the three clean SDR++ profiles logged source startup and stayed alive until
+the six-second test termination. This does not establish long-session or
+graceful GUI shutdown behavior.
 
 Future assistants should read [AGENTS.md](AGENTS.md). If the public repository
 is lost, verify the private `public-project.bundle` using the private

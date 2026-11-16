@@ -1,10 +1,171 @@
 {
+  "schema": 1,
   "date": "2026-11-16",
   "integration_revision": "2026.11.16.1",
-  "status": "verification-in-progress",
-  "private_release": "AD0441/msi-sdr-macos-recovery/recovery-2026.11.16.1",
-  "private_asset_count": 16,
-  "private_asset_sha256_verified_against_github": true,
-  "source_hashes_match_tested_integration": true,
-  "notes": "Final fresh-clone and downloaded-input results will replace this preliminary record."
+  "status": "verified",
+  "recovery_recipe_commit": "5ad7b65bdddd0cdccbca8d960063a0a1602af955",
+  "environment": {
+    "architecture": "arm64",
+    "macos": "27.3",
+    "sdk": "27.2",
+    "python": "3.9.6",
+    "same_mac_fresh_directories": true,
+    "freshly_formatted_mac_tested": false
+  },
+  "private_backup": {
+    "repository": "AD0441/msi-sdr-macos-recovery",
+    "tag": "recovery-2026.11.16.1",
+    "visibility_verified": "private",
+    "initial_assets": 16,
+    "all_initial_sizes_and_sha256_match_github_api": true,
+    "downloaded_to_empty_cache_and_sha256_checked": 10,
+    "personal_settings_imported": false,
+    "previous_applications_download_restore_tested": false
+  },
+  "offline_guardrails": {
+    "tests_passed": 10,
+    "github_run": "https://github.com/AD0441/msi-sdr-macos-soapy-fixes/actions/runs/43815417288",
+    "conclusion": "success"
+  },
+  "compiler_audit": {
+    "compiled_recipe_commit": "5ad7b65",
+    "environment_path": "/usr/bin:/bin:/usr/sbin:/sbin",
+    "compiler_audit_files": 16,
+    "forbidden_external_build_paths": [],
+    "dependency_files": [
+      "plugin-sdrpp.d",
+      "brown-entry.d",
+      "plugin-ce.d",
+      "plugin-brown.d",
+      "module-0.8-3.d",
+      "launcher.d",
+      "driver.d",
+      "module-0.8.d"
+    ]
+  },
+  "rebuilds": [
+    {
+      "application": "SDR++ MSI Integrado.app",
+      "archive": "SDR++ MSI Integrado-rebuilt.zip",
+      "sha256": "7da01136cb1a91b978ea3077e76ef2e2a00889e05400981ecc7b01a0e153dee9",
+      "signature": "valid"
+    },
+    {
+      "application": "SDR++Brown MSI Integrado.app",
+      "archive": "SDR++Brown MSI Integrado-rebuilt.zip",
+      "sha256": "49340c274c95a6251c6c5b48d612b30e3fba0f247d82ef5eb333067f516ac5ab",
+      "signature": "valid"
+    },
+    {
+      "application": "SDR++CE MSI Integrado.app",
+      "archive": "SDR++CE MSI Integrado-rebuilt.zip",
+      "sha256": "2dc8350f547e815f63b3998a0e12fdccdeafca94f67631e9c8b664291dcaa827",
+      "signature": "valid"
+    },
+    {
+      "application": "SDRangel MSI Integrado.app",
+      "archive": "SDRangel MSI Integrado-rebuilt.zip",
+      "sha256": "cc5bfae78b1f05f3042dc8915d17738121a5ae25841293f4d483da0620a7f810",
+      "signature": "valid"
+    }
+  ],
+  "rebuilt_zip_roundtrips": [
+    {
+      "archive": "SDR++Brown MSI Integrado-rebuilt.zip",
+      "zip_roundtrip_signature": "valid"
+    },
+    {
+      "archive": "SDRangel MSI Integrado-rebuilt.zip",
+      "zip_roundtrip_signature": "valid"
+    },
+    {
+      "archive": "SDR++ MSI Integrado-rebuilt.zip",
+      "zip_roundtrip_signature": "valid"
+    },
+    {
+      "archive": "SDR++CE MSI Integrado-rebuilt.zip",
+      "zip_roundtrip_signature": "valid"
+    }
+  ],
+  "restored_variants": [
+    {
+      "variant": "sdrpp",
+      "signature": "valid",
+      "integration_check": true
+    },
+    {
+      "variant": "brown",
+      "signature": "valid",
+      "integration_check": true
+    },
+    {
+      "variant": "ce",
+      "signature": "valid",
+      "integration_check": true
+    },
+    {
+      "variant": "sdrangel",
+      "signature": "valid",
+      "integration_check": true
+    }
+  ],
+  "rebuilt_runtime_checks": [
+    {
+      "variant": "sdrpp",
+      "help_exit_code": 0,
+      "usb_exit_code": 0,
+      "stream_summary": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00683737"
+    },
+    {
+      "variant": "brown",
+      "help_exit_code": 0,
+      "usb_exit_code": 0,
+      "stream_summary": "cycle=1 rate=2.048e+06 samples=2009088 errors=0 mean_power=0.00681891"
+    },
+    {
+      "variant": "ce",
+      "help_exit_code": 0,
+      "usb_exit_code": 0,
+      "stream_summary": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00678676"
+    },
+    {
+      "variant": "sdrangel",
+      "help_exit_code": 0,
+      "usb_exit_code": 0,
+      "stream_summary": "cycle=1 rate=2.048e+06 samples=2064384 errors=0 mean_power=0.00681916"
+    }
+  ],
+  "clean_initial_profiles": [
+    {
+      "variant": "sdrpp",
+      "source_start_logged": true,
+      "alive_after_seconds": 6,
+      "termination": "SIGTERM issued by test; not a graceful-exit test"
+    },
+    {
+      "variant": "brown",
+      "source_start_logged": true,
+      "alive_after_seconds": 6,
+      "termination": "SIGTERM issued by test; not a graceful-exit test"
+    },
+    {
+      "variant": "ce",
+      "source_start_logged": true,
+      "alive_after_seconds": 6,
+      "termination": "SIGTERM issued by test; not a graceful-exit test"
+    }
+  ],
+  "observed_diagnostics": [
+    "GLFW reports unsupported regular-window icons on macOS; processes continued.",
+    "One upstream startup logged reset error -5; port rediscovery recovered and Start was logged.",
+    "Legacy first-block counter diagnostics are not calibrated lost-sample measurements."
+  ],
+  "scope": "Patched integration compiled from downloaded locked source/SDK/original-app assets; complete third-party cores and Qt are preserved binaries, not rebuilt from source.",
+  "remaining": [
+    "Physical USB unplug/replug",
+    "Extended GUI and audio sessions",
+    "RF calibration",
+    "Optional original SDRangel camera/SQL/bench paths",
+    "Testing on a newly formatted or separate Mac"
+  ]
 }
