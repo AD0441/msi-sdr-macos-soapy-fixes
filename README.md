@@ -58,6 +58,8 @@ Entorno de validación: Apple Silicon arm64, macOS 27.3, SoapySDR 0.8.1 y libusb
 
 Este repositorio distribuye **código, parches y documentación**. Las cuatro aplicaciones se construyeron localmente a partir de copias originales; aquí no se publican bundles completos ni un instalador automático.
 
+**Recuperación después de formatear:** [guía en español e inglés](RECOVERY.md). Incluye una receta automatizada para reconstruir la integración y restaurar las aplicaciones preservadas. Las apps, sus entradas exactas y los ajustes personales están en un respaldo privado del propietario; el código público funciona como registro duradero del proyecto.
+
 ```sh
 git clone https://github.com/AD0441/msi-sdr-macos-soapy-fixes.git
 cd msi-sdr-macos-soapy-fixes
@@ -148,6 +150,8 @@ Validation environment: Apple Silicon arm64, macOS 27.3, SoapySDR 0.8.1 and libu
 ### Getting started
 
 This repository distributes **source code, patches and documentation**. The four applications were built locally from original copies; complete application bundles and an automatic installer are not published here.
+
+**Recovery after reinstalling macOS:** [Spanish and English guide](RECOVERY.md). It includes an automated integration rebuild and restoration of the preserved applications. Exact apps, inputs and personal settings are stored in the owner's private backup; this public repository preserves the durable project context.
 
 ```sh
 git clone https://github.com/AD0441/msi-sdr-macos-soapy-fixes.git

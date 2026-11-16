@@ -1,0 +1,12 @@
+{
+  "device": "Mirics MSi2500 default (e.g. VTX3D card) :: 00000001",
+  "devices": {
+    "Mirics MSi2500 default (e.g. VTX3D card) :: 00000001": {
+      "agc": true,
+      "antenna": 0,
+      "bandwidth": 4,
+      "gains": {"Automatic": 93.0, "Baseband": 56.0, "LNA": 1.0, "Mixbuffer": 6.0, "Mixer": 19.0},
+      "sampleRate": 2048000.0
+    }
+  }
+}

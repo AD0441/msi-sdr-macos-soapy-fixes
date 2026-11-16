@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-16",
+  "integration_revision": "2026.11.16.1",
+  "status": "verification-in-progress",
+  "private_release": "AD0441/msi-sdr-macos-recovery/recovery-2026.11.16.1",
+  "private_asset_count": 16,
+  "private_asset_sha256_verified_against_github": true,
+  "source_hashes_match_tested_integration": true,
+  "notes": "Final fresh-clone and downloaded-input results will replace this preliminary record."
+}

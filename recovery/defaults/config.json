@@ -1,0 +1,12 @@
+{
+  "source": "SoapySDR",
+  "frequency": 100000000.0,
+  "modulesDirectory": "../Plugins",
+  "resourcesDirectory": "../Resources",
+  "moduleInstances": {
+    "Audio Sink": {"enabled": true, "module": "audio_sink"},
+    "Radio": {"enabled": true, "module": "radio"},
+    "Recorder": {"enabled": true, "module": "recorder"},
+    "SoapySDR Source": {"enabled": true, "module": "soapy_source"}
+  }
+}

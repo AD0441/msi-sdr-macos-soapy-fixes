@@ -2,6 +2,8 @@
 
 Estos son los componentes usados en las variantes locales. Los bundles originales completos y las dependencias deben estar disponibles localmente. No hay un instalador que reemplace aplicaciones del usuario desde este repositorio.
 
+La [receta de recuperación](../RECOVERY.md) automatiza este proceso usando entradas archivadas y verificadas. No necesita las copias MSI previamente instaladas ni rutas del Mac original.
+
 ## Estructura
 
 ```text
