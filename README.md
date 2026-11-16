@@ -1,142 +1,214 @@
-# MSI-SDR macOS Soapy fixes
+<div align="center">
+  <h1>MSI-SDR · macOS Fixes</h1>
+  <p><strong>Tu receptor, en las aplicaciones que ya usas.<br>Your receiver, in the applications you already use.</strong></p>
+  <p>Compatibilidad, integración y estabilidad para MSI2500/MSI001 en macOS.<br>Compatibility, integration and stability for MSI2500/MSI001 on macOS.</p>
+  <p>
+    <img alt="macOS 26 or later for the tested components" src="https://img.shields.io/badge/macOS-26%2B-183B4A?style=flat-square&amp;logo=apple&amp;logoColor=white">
+    <img alt="Apple Silicon arm64" src="https://img.shields.io/badge/Apple_Silicon-arm64-365D72?style=flat-square">
+    <img alt="MIT license for this project's original code" src="https://img.shields.io/badge/license-MIT-58616B?style=flat-square">
+  </p>
+  <p><a href="#es">Español</a> · <a href="#en">English</a> · <a href="#empezar">Empezar</a> · <a href="#getting-started">Get started</a> · <a href="docs/validation-2026-11.md">Validación / Validation</a> · <a href="https://ko-fi.com/C0C51WQ1T0">Apoyar / Support</a></p>
+</div>
 
-Solucion reproducible para usar receptores **MSI.SDR / Mirics MSi2500 / RSP1 compatible** en macOS Apple Silicon con **SDRangel**, **SDR++**, **SDR++Brown** y **SDR++CE** mediante SoapySDR.
+**Creado por Sebastián Pastén F. / Created by Sebastián Pastén F.**
 
-## Actualizacion de noviembre de 2026
+[![Apoyar / Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C51WQ1T0)
 
-Se reprodujo un cierre USB que persistia incluso con la misma libusb en la app y en el driver. La correccion completa espera las terminaciones de las transferencias antes de liberar memoria, sincroniza inicio/parada y utiliza BULK en macOS.
+<a id="es"></a>
 
-- [Integracion de las cuatro aplicaciones y componentes probados](docs/msi-integrated-apps.md).
-- [Resultados y limites de la validacion](docs/validation-2026-11.md).
-- [Parches y revisiones de origen](patches/README.md).
-- [Lanzador nativo y componentes de empaquetado](packaging/README.md).
+## Español
 
-Prueba con receptor conectado: **120 segundos a 2.048 MS/s, 245,763,072 muestras y cero errores de lectura**, usando BULK. No representa una prueba prolongada de todas las funciones de cada aplicacion.
+### Por qué existe
 
-El problema no era un unico driver faltante. La solucion estable combino tres ajustes:
+**El problema principal era que las aplicaciones de macOS no reconocían el MSI-SDR.** El receptor podía aparecer en USB o funcionar con herramientas externas, pero no estar disponible como fuente dentro de SDR++, sus variantes o SDRangel. Después de resolver la detección también aparecieron cierres al recibir, cambiar ajustes o detener el equipo.
 
-1. Compilar SoapyMiri contra el ABI correcto de SoapySDR cuando se usa dentro de SDRangel.
-2. Agregar `soapy_source.dylib` a SDR++ para que pueda usar dispositivos SoapySDR.
-3. Evitar que SDR++ y `libmirisdr` carguen versiones distintas de `libusb`.
+Este proyecto reúne parches, componentes de integración y pruebas para usar el receptor **MSI2500 + MSI001** en aplicaciones existentes. La propuesta mejora el controlador y su conexión con cada programa. Se construyeron y probaron variantes locales de **SDR++, SDR++Brown, SDR++CE y SDRangel** con el sufijo `MSI Integrado`.
 
-## Equipo probado
+También se conserva el contenido y el historial del antiguo proyecto `sdrpp-macos-fixes`: las reparaciones generales de dependencias y la recuperación del ATV Decoder forman ahora parte de este repositorio. [Detalle de la unificación](docs/repository-consolidation.md).
 
-```text
-Apple Silicon arm64
-macOS 27.3 (validacion inicial: 27.0)
-SDRangel 7.27.1
-SDR++ 1.3.0
-SDR++Brown 1.2.1-brown
-SDR++CE 1.2.5-CE_b
-SoapySDR 0.8.1
-SoapyMiri d94629b + parches de este repositorio
-libmirisdr-4 fd0452e + parches de este repositorio
-libusb 1.0.30 (Mach-O current version 7.0.0)
-Mirics MSi2500 / RSP1 compatible
+### Qué resuelve
+
+| Problema observado | Solución incorporada | Alcance |
+| --- | --- | --- |
+| El MSI no aparece como fuente | SoapyMiri, fuente SoapySDR y rutas de carga adaptadas a cada aplicación | Integración MSI2500/MSI001 en las cuatro variantes probadas |
+| SDRangel carga un módulo incompatible | SoapyMiri compilado contra su SoapySDR ABI `0.8-3` | El módulo para Homebrew ABI `0.8` requiere una compilación distinta |
+| Dependencias USB mezcladas o ausentes | Componentes MSI privados dentro de cada `.app` | La reparación aislada de libusb se conserva para diagnosticar otros bundles |
+| Cierres durante recepción o parada | Cancelar y esperar transferencias USB, sincronizar el lector y usar BULK por defecto en macOS | Fallo USB reproducido y corregido en las pruebas documentadas |
+| Filtros inválidos o diferencias entre forks | Filtros soportados y un plugin compilado para cada variante de SDR++ | Los plugins de Brown, CE y upstream no son intercambiables |
+| Configuración afectada por ATV Decoder | Respaldo y eliminación selectiva de sus instancias guardadas | Recuperación de configuración; el fallo del destructor de ATV sigue pendiente |
+
+### Aplicaciones y receptor
+
+| Aplicación probada | Versión | SoapySDR |
+| --- | --- | --- |
+| SDR++ | 1.3.0 | ABI `0.8` |
+| SDR++Brown | 1.2.1-brown | ABI `0.8`, plugin propio de Brown |
+| SDR++CE | 1.2.5-CE_b | ABI `0.8`, plugin propio de CE |
+| SDRangel | 7.27.1 | ABI `0.8-3`, revisión `1667b4e6` |
+
+Receptor: ADC **MSI2500 de 12 bits** y sintonizador **MSI001**. Las especificaciones suministradas indican **10 kHz–1 GHz**, ancho de banda comercial de **500 kHz–10 MHz** y TCXO de **24 MHz / 1 ppm**. El controlador se ajustó al rango informado de ese modelo y ofrece filtros discretos hasta **8 MHz**. El ancho comercial de 10 MHz no está implementado en esta biblioteca. No se midieron ENOB, precisión del TCXO, sensibilidad ni rendimiento en todo el rango RF.
+
+Entorno de validación: Apple Silicon arm64, macOS 27.3, SoapySDR 0.8.1 y libusb 1.0.30. Los componentes construidos requieren **macOS 26 o posterior**; la validación funcional corresponde al Mac y las versiones indicadas.
+
+<a id="empezar"></a>
+
+### Empezar
+
+Este repositorio distribuye **código, parches y documentación**. Las cuatro aplicaciones se construyeron localmente a partir de copias originales; aquí no se publican bundles completos ni un instalador automático.
+
+```sh
+git clone https://github.com/AD0441/msi-sdr-macos-soapy-fixes.git
+cd msi-sdr-macos-soapy-fixes
 ```
 
-## Resultado final
+1. Revisa la [integración de las cuatro aplicaciones](docs/msi-integrated-apps.md) y las [revisiones de origen de los parches](patches/README.md).
+2. Compila los componentes con el ABI de la aplicación elegida y prepara una copia siguiendo la [estructura de empaquetado](packaging/README.md). Conserva el original antes de modificar una `.app`.
+3. Verifica la copia integrada sin abrirla ni acceder al receptor:
 
-- SoapySDR detecta el MSi2500.
-- SDRangel funciona con el modulo SoapyMiri compilado contra el ABI correcto.
-- SDR++ carga `soapy_source`.
-- SDR++ funciona con `Sample rate = 2.048 MS/s` y `Bandwidth = 1.536 MHz`.
-- SDR++ y `libmirisdr` usan la misma `libusb` 7.0.0.
-- Las aplicaciones modificadas quedan firmadas nuevamente en macOS.
-- Las variantes integradas cargan sus bibliotecas MSI desde el mismo bundle.
-- Se verifican los ZIP descomprimidos y se comparan sus archivos con las copias instaladas.
+   ```sh
+   python3 scripts/verify-integrated.py "/Applications/SDR++ MSI Integrado.app"
+   ```
 
-## Diagnostico corto
+4. Con las otras aplicaciones de recepción cerradas, selecciona **SoapySDR → Mirics MSi2500**. Ajuste inicial probado: **2.048 MS/s**, filtro **1.536 MHz**, USB **BULK**. La tasa de muestreo y el ancho del filtro son ajustes distintos.
 
-### SDRangel
+Cada variante de SDR++ utiliza un perfil separado en `~/Library/Application Support/MSI-SDR/`. SDRangel mantiene sus preferencias nativas y el lanzador activa `--soapy`.
 
-SDRangel trae su propia version de SoapySDR:
+### Pruebas y límites
 
-```text
-SDRangel SoapySDR interno: ABI 0.8-3
-SoapySDR Homebrew:        ABI 0.8
+| Comprobación | Resultado observado |
+| --- | --- |
+| BULK a 2.048 MS/s durante 120 segundos | **245,763,072 muestras y cero errores de lectura** |
+| 30 ciclos de arranque y parada inmediata | Sin bloqueo |
+| Error USB simulado que cerraba el driver original | El driver corregido devuelve un error y finaliza sin SIGSEGV |
+| SDR++ integrado | Espectro y waterfall observados con el receptor |
+| Brown y CE integrados | Arranque de recepción y componentes MSI cargados desde su bundle |
+| SDRangel | Enumeración y recepción directa con su ABI `0.8-3` |
+| Cuatro copias instaladas | Pruebas breves de muestras reales y firmas verificadas |
+
+Estos resultados no certifican todos los decodificadores, audio ni sesiones prolongadas en cada aplicación. [Evidencia, pruebas reproducibles y límites completos](docs/validation-2026-11.md).
+
+### Herramientas de recuperación
+
+- [Dependencias SoapySDR/libusb de SDR++](fixes/01-libusb-soapysdr-macos.md): `scripts/repair-sdrpp-libusb.sh`. Requiere una libusb ya incluida y rutas `@rpath` resolubles; cambia enlaces y vuelve a firmar la aplicación. No sustituye los parches del controlador ni la integración completa.
+- [Recuperación del ATV Decoder](fixes/02-atv-decoder-crash.md): `scripts/remove-atv-decoder-instance.sh`. Crea un respaldo y elimina solamente instancias `atv_decoder` de `config.json`. Para los perfiles MSI separados, indica explícitamente el archivo correspondiente.
+- `scripts/verify-sdrpp.sh` y `scripts/verify-sdrangel.sh`: inspección de las instalaciones iniciales. `scripts/verify-integrated.py`: comprobación de las variantes privadas actuales.
+
+Cierra SDR++ antes de utilizar los scripts de recuperación. Cada modificación del bundle exige volver a firmarlo; una actualización de la aplicación puede reemplazar los cambios. MSI-SDR utiliza Mirics/SoapyMiri; `rtl_test` corresponde a otro controlador.
+
+### Contribuir y apoyar
+
+Para [informar un problema](https://github.com/AD0441/msi-sdr-macos-soapy-fixes/issues), incluye modelo del receptor, versión de macOS, aplicación y versión, registro o informe de cierre, y pasos para reproducirlo. Las mejoras del controlador USB pueden compartirse entre proyectos; la integración de cada aplicación debe respetar su ABI y licencia.
+
+Se publicó una [propuesta de colaboración con `olexii4/msi-sdr-radio`](https://github.com/olexii4/msi-sdr-radio/issues/1) sobre estos hallazgos. Es una propuesta de contribución; no implica que ese proyecto haya aceptado los parches.
+
+Puedes apoyar el trabajo en [Ko-fi](https://ko-fi.com/C0C51WQ1T0).
+
+<a id="en"></a>
+
+## English
+
+### Why this project exists
+
+**The main problem was that macOS SDR applications did not recognize the MSI-SDR receiver.** The device could appear on USB or work with external tools while remaining unavailable as an input in SDR++, its variants or SDRangel. After detection was restored, further crashes appeared during reception, setting changes and device shutdown.
+
+This project brings together patches, integration components and tests for using the **MSI2500 + MSI001** receiver in existing applications. The approach improves the driver and its connection to each program. Local **SDR++, SDR++Brown, SDR++CE and SDRangel** variants were built and tested with the suffix `MSI Integrado`.
+
+It also preserves the content and history of the former `sdrpp-macos-fixes` project: general dependency repair and ATV Decoder recovery now live in this repository. [Consolidation details](docs/repository-consolidation.md).
+
+### What it addresses
+
+| Observed problem | Included solution | Scope |
+| --- | --- | --- |
+| The MSI is missing from the input list | SoapyMiri, a SoapySDR source and application-specific loading paths | MSI2500/MSI001 integration in the four tested variants |
+| SDRangel loads an incompatible module | SoapyMiri built against its SoapySDR ABI `0.8-3` | Homebrew ABI `0.8` needs a separate module build |
+| Mixed or missing USB dependencies | Private MSI components inside each `.app` | The standalone libusb repair remains available for diagnosing other bundles |
+| Crashes during reception or shutdown | Cancel and drain USB transfers, synchronize the reader and default to BULK on macOS | USB failure reproduced and corrected in the documented tests |
+| Invalid filters or fork differences | Supported filters and a separate plugin build for each SDR++ variant | Brown, CE and upstream plugins are not interchangeable |
+| Configuration affected by ATV Decoder | Backup and selective removal of saved instances | Configuration recovery; the ATV destructor defect remains unresolved |
+
+### Applications and hardware
+
+| Tested application | Version | SoapySDR |
+| --- | --- | --- |
+| SDR++ | 1.3.0 | ABI `0.8` |
+| SDR++Brown | 1.2.1-brown | ABI `0.8`, Brown-specific plugin |
+| SDR++CE | 1.2.5-CE_b | ABI `0.8`, CE-specific plugin |
+| SDRangel | 7.27.1 | ABI `0.8-3`, revision `1667b4e6` |
+
+Receiver: **12-bit MSI2500 ADC** and **MSI001 tuner**. The supplied specifications state **10 kHz–1 GHz**, advertised bandwidth of **500 kHz–10 MHz** and a **24 MHz / 1 ppm TCXO**. The driver profile follows that model's reported frequency range and offers discrete filters up to **8 MHz**. The advertised 10 MHz bandwidth is not implemented by this library. ENOB, TCXO accuracy, sensitivity and performance across the full RF range were not measured.
+
+Validation environment: Apple Silicon arm64, macOS 27.3, SoapySDR 0.8.1 and libusb 1.0.30. The built components require **macOS 26 or later**; functional validation applies to the tested Mac and application versions.
+
+<a id="getting-started"></a>
+
+### Getting started
+
+This repository distributes **source code, patches and documentation**. The four applications were built locally from original copies; complete application bundles and an automatic installer are not published here.
+
+```sh
+git clone https://github.com/AD0441/msi-sdr-macos-soapy-fixes.git
+cd msi-sdr-macos-soapy-fixes
 ```
 
-Un modulo SoapyMiri compilado contra Homebrew puede cargar parcialmente, pero queda expuesto a fallos de ABI, por ejemplo en metodos virtuales como:
+1. Read the [four-application integration notes](docs/msi-integrated-apps.md) and [patch base revisions](patches/README.md).
+2. Build components against the chosen application's ABI and prepare a copy using the [packaging layout](packaging/README.md). Keep the original before changing a `.app` bundle.
+3. Check the integrated copy without launching it or accessing the receiver:
 
-```text
-listGPIOBanks()
-getSettingInfo()
-```
+   ```sh
+   python3 scripts/verify-integrated.py "/Applications/SDR++ MSI Integrado.app"
+   ```
 
-La solucion fue compilar SoapyMiri contra el commit de SoapySDR usado por SDRangel:
+4. Close other receiving applications, then select **SoapySDR → Mirics MSi2500**. Tested starting settings: **2.048 MS/s**, **1.536 MHz** filter, USB **BULK**. Sample rate and filter bandwidth are separate settings.
 
-```text
-1667b4e6
-SoapySDR 0.8.1-g1667b4e6
-ABI 0.8-3
-```
+Each SDR++ variant uses a separate profile under `~/Library/Application Support/MSI-SDR/`. SDRangel retains its native preferences, with `--soapy` enabled by the launcher. Detailed technical notes currently use Spanish; commands, paths and revision identifiers are shared.
 
-Ver: [docs/sdrangel-abi-fix.md](docs/sdrangel-abi-fix.md).
+### Validation and limits
 
-### SDR++
+| Check | Observed result |
+| --- | --- |
+| BULK at 2.048 MS/s for 120 seconds | **245,763,072 samples and zero read errors** |
+| 30 immediate start/stop cycles | No hang |
+| Injected USB error that crashed the original driver | Patched driver reports an error and exits without SIGSEGV |
+| Integrated SDR++ | Live spectrum and waterfall observed with the receiver |
+| Integrated Brown and CE | Reception started and MSI components loaded from their bundles |
+| SDRangel | Enumeration and direct reception with its ABI `0.8-3` |
+| Four installed copies | Brief real-sample checks and signature verification |
 
-SDR++ tenia dos problemas separados.
+These results do not certify every decoder, audio path or extended session in each application. [Evidence, reproducible tests and full limitations](docs/validation-2026-11.md).
 
-Primero, cuando quedaba configurado con:
+### Recovery tools
 
-```text
-Sample rate: 9 MS/s
-Bandwidth: Auto
-```
+- [SDR++ SoapySDR/libusb dependency repair](fixes/01-libusb-soapysdr-macos.md): `scripts/repair-sdrpp-libusb.sh`. Requires an existing bundled libusb and resolvable `@rpath` paths; changes dependency references and re-signs the application. It does not replace driver patches or the full integration.
+- [ATV Decoder recovery](fixes/02-atv-decoder-crash.md): `scripts/remove-atv-decoder-instance.sh`. Backs up `config.json` and removes only `atv_decoder` instances. Pass the appropriate configuration file explicitly for the separate MSI profiles.
+- `scripts/verify-sdrpp.sh` and `scripts/verify-sdrangel.sh`: inspect the initial installations. `scripts/verify-integrated.py`: inspect the current private variants.
 
-SDR++ seleccionaba un ancho de banda de `14 MHz`. `mirisdr_set_bandwidth()` lo rechazaba y SoapyMiri lanzaba una excepcion no capturada.
+Close SDR++ before using recovery scripts. Bundle changes require re-signing, and application updates may replace them. MSI-SDR uses Mirics/SoapyMiri; `rtl_test` belongs to a different driver.
 
-Configuracion estable:
+### Contributing and support
 
-```text
-Sample rate: 2.048 MS/s
-Bandwidth: 1.536 MHz
-```
+When [reporting an issue](https://github.com/AD0441/msi-sdr-macos-soapy-fixes/issues), include the receiver model, macOS version, application and version, log or crash report, and reproduction steps. USB driver improvements can be shared across projects; each application's integration must respect its ABI and license.
 
-Segundo, SDR++ incluia una copia interna de `libusb` con version actual `6.0.0`, mientras `libmirisdr` de Homebrew usaba `7.0.0`. Era necesario unificar estas bibliotecas. Los cierres se situaban en:
+A [collaboration proposal for `olexii4/msi-sdr-radio`](https://github.com/olexii4/msi-sdr-radio/issues/1) describes these findings. It is a contribution proposal; it does not mean that project has accepted the patches.
 
-```text
-org.libusb.device-hotplug
-darwin_async_io_callback
-```
+You can support this work on [Ko-fi](https://ko-fi.com/C0C51WQ1T0).
 
-La revision posterior encontro cierres en esa misma funcion incluso despues de unificar libusb. Un error simulado en `libusb_submit_transfer` reprodujo el cierre: el driver liberaba transferencias que todavia tenian callbacks pendientes. La correccion cancela y drena esas operaciones antes de liberar memoria. La preferencia por BULK evita ademas las interrupciones observadas con la ruta isocrona en este Mac.
+## Sources and license / Fuentes y licencia
 
-Ver: [docs/sdrpp-soapymiri-fix.md](docs/sdrpp-soapymiri-fix.md).
+- [SDR++](https://github.com/AlexandreRouma/SDRPlusPlus)
+- [SDR++Brown](https://github.com/sannysanoff/SDRPlusPlusBrown)
+- [SDR++CE](https://github.com/LunaeMons/SDRPlusPlus_CommunityEdition)
+- [SDRangel](https://github.com/f4exb/sdrangel)
+- [SoapySDR](https://github.com/pothosware/SoapySDR)
+- [SoapyMiri](https://github.com/ericek111/SoapyMiri)
+- [libmirisdr-4](https://github.com/f4exb/libmirisdr-4)
 
-## Verificacion rapida
+Código original de este proyecto: [MIT](LICENSE). Los parches y componentes de terceros conservan las licencias y avisos de sus proyectos de origen.
 
-```bash
-scripts/verify-sdrangel.sh
-scripts/verify-sdrpp.sh
-```
+This project's original code: [MIT](LICENSE). Third-party patches and components retain their upstream licenses and notices.
 
-Los scripts solo inspeccionan binarios, dependencias y firma. No modifican aplicaciones. Para las nuevas variantes integradas:
-
-```bash
-python3 scripts/verify-integrated.py "/Applications/SDR++ MSI Integrado.app"
-```
-
-## Parche propuesto
-
-El archivo [patches/soapymiri-bandwidth-safety.patch](patches/soapymiri-bandwidth-safety.patch) propone que SoapyMiri no aborte cuando una aplicacion solicita un ancho de banda no soportado exactamente. En vez de lanzar una excepcion fatal, selecciona el ancho valido mas cercano.
-
-Ese parche minimo se conserva como antecedente. La implementacion validada esta en `patches/soapymiri-msi-macos-stability.patch`; no se deben aplicar ambos parches de bandwidth a la misma copia. Los cambios USB y de cada fork se describen en [patches/README.md](patches/README.md).
-
-## Advertencias
-
-- Haz respaldo de cualquier `.app` antes de modificarlo.
-- Cada cambio dentro de un bundle `.app` invalida la firma y exige volver a firmar.
-- Una actualizacion de SDR++ o SDRangel puede reemplazar los cambios.
-- Los componentes utilizados en esta entrega requieren macOS 26 o posterior. No se afirma compatibilidad con sistemas anteriores por el minimo declarado de la app original.
-- Esta guia no convierte MSI.SDR en RTL-SDR. El hardware va por Mirics/SoapyMiri, no por `rtl_test`.
-
-## Fuentes y repositorios utiles
-
-- SDR++: https://github.com/AlexandreRouma/SDRPlusPlus
-- SDR++ nightly: https://www.sdrpp.org/nightly
-- SDRangel: https://github.com/f4exb/sdrangel
-- SoapySDR: https://github.com/pothosware/SoapySDR
-- SoapyMiri: https://github.com/ericek111/SoapyMiri
-- libmirisdr-4: https://github.com/f4exb/libmirisdr-4
+<div align="center">
+  <p><strong>Simplicidad con impacto.</strong><br>Concéntrate en lo que vale la pena.</p>
+  <p><a href="https://github.com/AD0441/NABERIUS">NABERIUS</a> · <a href="https://github.com/AD0441/RAZIEL">RAZIEL</a> · <a href="https://github.com/AD0441/METATRON">METATRON</a> · <a href="https://github.com/AD0441/PAIMON">PAIMON</a> · <a href="https://github.com/AD0441/VAPULA">VAPULA</a></p>
+  <p><strong>Creado por Sebastián Pastén F. / Created by Sebastián Pastén F.</strong></p>
+  <p><a href="https://www.sebastianpasten.com/desarrollos-aplicaciones-para-mac-software-sdr">Más aplicaciones para Mac / More Mac applications</a> · <a href="https://ko-fi.com/C0C51WQ1T0">Apoyar / Support on Ko-fi</a></p>
+</div>
